@@ -1,7 +1,7 @@
 # time x heatmap
 
 * 初めてのHeatmap、時系列変化で見たいと思い、やってみた。
-  * <http://trial-viz.tviz.ninja/time-heatmap/demo.html>
+  * <https://trial-viz.tviz.ninja/time-heatmap/demo.html>
 * データはFIRMS(NASA)から、2021年のスペインのVIIRS SNPP
   * <https://firms.modaps.eosdis.nasa.gov/country/>
 * レンジスライダーで日付を変更
