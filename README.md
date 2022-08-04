@@ -5,7 +5,7 @@
 ## Ideas
 
 * Time x heatmap
-  * [https://trial-viz.tviz.ninja/time-heatmap/](README)
-  * [https://trial-viz.tviz.ninja/time-heatmap/demo.html](デモ)
+  * [README](https://trial-viz.tviz.ninja/time-heatmap/)
+  * [デモ](https://trial-viz.tviz.ninja/time-heatmap/demo.html)
 * Time x bubble chart
   * todo
