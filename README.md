@@ -4,4 +4,8 @@
 
 ## Ideas
 
+* Time x heatmap
+  * 説明 </time-heatmap/>
+  * デモ <http://trial-viz.tviz.ninja/time-heatmap/demo.html>
 * Time x bubble chart
+  * todo
