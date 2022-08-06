@@ -183,7 +183,7 @@ csv2json(config.url_csv).then(geoj => {
     map.addSource('points', config.source_points)
     map.addLayer(config.layer_heatmap)
     // config controls
-    const conv = d => (new Date(config.tunit)).toISOString().slice(0,10)
+    const conv = d => (new Date(d*config.tunit)).toISOString().slice(0,10)
     const lblw = a => `windowing(days): ${a}`
     const lblt = (a, b) => [conv(a), conv(b)].join(" - ")
     const ctlw = windowRangeControl(e=>draw(e), {
