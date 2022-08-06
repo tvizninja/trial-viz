@@ -9,8 +9,9 @@
     <style>
 html, body, #map {height: 100%; width: 100%; padding: 0; margin: 0; overflow: hidden }
 #data { display: none }
-.range { padding: 8px; margin: 8px }
+.range { padding: 2px; margin: 8px }
 .range input { width: 50vw }
+.range label { width: 50vw }
     </style>
   </head>
   <body>
@@ -24,6 +25,7 @@ const config = {
     style: 'https://demotiles.maplibre.org/style.json',
     center: [ -5, 40],
     zoom: 5,
+    hash: true,
     'customAttribution': 'MapLibre, FIRMS(NASA)',
     'maplibreLogo': true,
     'maxBounds': [[-25, 30],[15, 50]],
@@ -73,45 +75,60 @@ const config = {
   },
 }
 
+// class and functions
 class rangeControl {
   constructor(props) {
     this.props = props
-    this.min = Math.min(...props.geoj.features.map(f=>f.properties._d)) + props.rangew,
-    this.max = Math.max(...props.geoj.features.map(f=>f.properties._d)),
-    this.conv = d => (new Date(d*24*60*60*1000)).toISOString().slice(0,10)
-    this.disp = (a, b) => [this.conv(a - props.rangew), this.conv(b)].join(" - ")
+    this.id = `rc${Math.random().toString(16).substring(2)}`
   }
   onAdd(map) {
     this._map = map
     this._container = document.createElement('div')
+    this._container.id = this.id
     this._container.className += 'range mapboxgl-ctrl'
     const input = document.createElement('input')
     const label = document.createElement('label')
-    input.type = 'range'
-    input.setAttribute('id', 'range')
-    input.setAttribute('min', this.min || 0)
-    input.setAttribute('max', this.max || 0)
-    input.setAttribute('step', 1)
-    input.setAttribute('value', this.min || 0)
     label.style.cssText = 'background: #eee'
-    label.innerText = this.disp(this.min, this.max)
-    label.setAttribute('for', 'range')
+    label.innerText = this.props.label || ''
+    input.type = 'range';
+    (['min', 'max', 'step', 'value']).filter(k=>this.props[k]).forEach(k=>{
+      input.setAttribute(k, this.props[k])
+    })
     this._container.appendChild(input)
     this._container.appendChild(label)
-    input.addEventListener('input', event => {
-      const t = event.target.value
-      label.innerText = this.disp(t, t)
-      map.getSource('points').setData({
-        type: 'FeatureCollection',
-        features: this.props.geoj.features.filter(f=>((t - this.props.rangew)<=f.properties._d)&&(f.properties._d<=t))
-      })
-    })
+    input.addEventListener('input', this.props.onchange)
     return this._container
   }
   onRemove() {
     this._container.parentNode.removeChild(this._container);
     this._map = undefined;
   }
+  setVal(v, l) {
+    document.querySelector(`#${this.id} input`).value = v
+    document.querySelector(`#${this.id} label`).innerText = l
+  }
+}
+
+const windowRangeControl = (cb, opt) => {
+  return new rangeControl({
+    step: 1,
+    min: opt.min || 0,
+    max: opt.max || 31,
+    value: opt.value || 7,
+    label: opt.label || '',
+    onchange: cb
+  })
+}
+
+const timeRangeControl = (cb, opt) => {
+  return new rangeControl({
+    step: 1,
+    min: opt.min || 0,
+    max: opt.max || 100,
+    value: opt.min || 0,
+    label: opt.label || '',
+    onchange: cb
+  })
 }
 
 const loadcsv = url => {
@@ -145,11 +162,30 @@ const map = new maplibregl.Map(config.map)
 map.on('load', async () => {
   map.addSource('points', config.source_points)
   map.addLayer(config.layer_heatmap)
+  const conv = d => (new Date(d*24*60*60*1000)).toISOString().slice(0,10)
+  const lblw = a => `window-day ${a}`
+  const lblt = (a, b) => [conv(a), conv(b)].join(" - ")
   const geoj = await loadcsv(config.url_csv)
-  map.addControl(new rangeControl({
-    geoj: geoj,
-    rangew: config.range_heatmap
-  }), 'top-left')
+  const min = Math.min(...geoj.features.map(f=>f.properties._d))
+  const max = Math.max(...geoj.features.map(f=>f.properties._d))
+  const ctlw = windowRangeControl(e=>draw(e), {
+    min: 0, max: 31, value: 7, label: lblw(7)
+  })
+  const ctlt = timeRangeControl(e=>draw(e), {
+    min: min, max: max, label: lblt(min, max)
+  })
+  map.addControl(ctlw, 'top-left')
+  map.addControl(ctlt, 'top-left')
+  const draw = e => {
+    const w = document.querySelector(`#${ctlw.id} input`).value
+    const t = document.querySelector(`#${ctlt.id} input`).value
+    ctlw.setVal(w, lblw(w))
+    ctlt.setVal(t, lblt(t-w, t))
+    map.getSource('points').setData({
+      type: 'FeatureCollection',
+      features: geoj.features.filter(f=>((t - w)<=f.properties._d)&&(f.properties._d<=t))
+    })
+  }
   map.getSource('points').setData({ type: 'FeatureCollection', features: geoj.features })
 })
   </script>
