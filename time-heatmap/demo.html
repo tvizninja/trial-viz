@@ -10,8 +10,8 @@
 html, body, #map {height: 100%; width: 100%; padding: 0; margin: 0; overflow: hidden }
 #data { display: none }
 .range { padding: 2px; margin: 8px }
-.range input { width: 50vw }
-.range label { width: 50vw }
+.range input { width: 80vw }
+.range label { font-size: large }
     </style>
   </head>
   <body>
@@ -19,23 +19,24 @@ html, body, #map {height: 100%; width: 100%; padding: 0; margin: 0; overflow: hi
   <script type='text/javascript'>
 // config
 const config = {
-  url_csv: 'data/viirs-snpp_2021_Spain.csv',
+  url_csv: 'data/viirs-snpp_2021_Japan.csv',
+  //url_csv: 'data/viirs-snpp_2021_Spain.csv',
+  //url_csv: 'data/viirs-snpp_2021_Ukraine.csv',
   map: {
     container: 'map',
     style: 'https://demotiles.maplibre.org/style.json',
-    center: [ -5, 40],
-    zoom: 5,
     hash: true,
     'customAttribution': 'MapLibre, FIRMS(NASA)',
     'maplibreLogo': true,
-    'maxBounds': [[-25, 30],[15, 50]],
-    'minZoom': 4
+    'renderWorldCopies': false
   },
   source_points: {
     type: 'geojson',
     data: null
   },
-  range_heatmap: 6,
+  rangew: {
+    min: 0, max: 31, val: 7
+  },
   layer_heatmap: {
     id: 'heatmap',
     type: 'heatmap',
@@ -86,17 +87,16 @@ class rangeControl {
     this._container = document.createElement('div')
     this._container.id = this.id
     this._container.className += 'range mapboxgl-ctrl'
+    this._container.style.cssText = 'background: #eee; opacity: 0.8'
     const input = document.createElement('input')
     const label = document.createElement('label')
-    label.style.cssText = 'background: #eee'
-    label.innerText = this.props.label || ''
     input.type = 'range';
     (['min', 'max', 'step', 'value']).filter(k=>this.props[k]).forEach(k=>{
       input.setAttribute(k, this.props[k])
     })
-    this._container.appendChild(input)
-    this._container.appendChild(label)
     input.addEventListener('input', this.props.onchange)
+    label.innerText = this.props.label || ''
+    this._container.append(input, document.createElement('br'), label)
     return this._container
   }
   onRemove() {
@@ -131,7 +131,7 @@ const timeRangeControl = (cb, opt) => {
   })
 }
 
-const loadcsv = url => {
+const csv2json = url => {
   return window.fetch(url).then(r=>r.text()).then(txt=>{
     const rows = txt.split("\n").filter(l=>l!='')
     const t = a => a.split(',').map(b=>b.trim())
@@ -157,37 +157,47 @@ const loadcsv = url => {
 }
 
 // process
-const map = new maplibregl.Map(config.map)
-
-map.on('load', async () => {
-  map.addSource('points', config.source_points)
-  map.addLayer(config.layer_heatmap)
-  const conv = d => (new Date(d*24*60*60*1000)).toISOString().slice(0,10)
-  const lblw = a => `window-day ${a}`
-  const lblt = (a, b) => [conv(a), conv(b)].join(" - ")
-  const geoj = await loadcsv(config.url_csv)
-  const min = Math.min(...geoj.features.map(f=>f.properties._d))
-  const max = Math.max(...geoj.features.map(f=>f.properties._d))
-  const ctlw = windowRangeControl(e=>draw(e), {
-    min: 0, max: 31, value: 7, label: lblw(7)
-  })
-  const ctlt = timeRangeControl(e=>draw(e), {
-    min: min, max: max, label: lblt(min, max)
-  })
-  map.addControl(ctlw, 'top-left')
-  map.addControl(ctlt, 'top-left')
-  const draw = e => {
-    const w = document.querySelector(`#${ctlw.id} input`).value
-    const t = document.querySelector(`#${ctlt.id} input`).value
-    ctlw.setVal(w, lblw(w))
-    ctlt.setVal(t, lblt(t-w, t))
-    map.getSource('points').setData({
-      type: 'FeatureCollection',
-      features: geoj.features.filter(f=>((t - w)<=f.properties._d)&&(f.properties._d<=t))
+let geoj = null
+let map = null
+csv2json(config.url_csv).then(gj => {
+  geoj = gj
+  const minmax = a => [Math.min(...a), Math.max(...a)]
+  const [cminlon, cmaxlon] = minmax(geoj.features.map(f=>f.geometry.coordinates[0]))
+  const [cminlat, cmaxlat] = minmax(geoj.features.map(f=>f.geometry.coordinates[1]))
+  const [dmin, dmax] = minmax(geoj.features.map(f=>f.properties._d))
+  config.map.center = [cmaxlon-(cmaxlon-cminlon)/2, cmaxlat-(cmaxlat-cmaxlat)/2]
+  config.map['maxBounds'] = [[cminlon-10, cminlat-10], [cmaxlon+10, cmaxlat+10]]
+  config.map.zoom = Math.floor(Math.log2(180/Math.max(cmaxlat-cminlat, cmaxlon-cminlon)))
+  console.log(config.map)
+  map = new maplibregl.Map(config.map)
+  map.on('load', async () => {
+    map.addSource('points', config.source_points)
+    map.addLayer(config.layer_heatmap)
+    const conv = d => (new Date(d*24*60*60*1000)).toISOString().slice(0,10)
+    const lblw = a => `windowing(days): ${a}`
+    const lblt = (a, b) => [conv(a), conv(b)].join(" - ")
+    const ctlw = windowRangeControl(e=>draw(e), {
+      min: config.rangew.min, max: config.rangew.max, value: config.rangew.val, label: lblw(config.rangew.val)
     })
-  }
-  map.getSource('points').setData({ type: 'FeatureCollection', features: geoj.features })
+    const ctlt = timeRangeControl(e=>draw(e), {
+      min: dmin, max: dmax, label: lblt(dmin, dmax)
+    })
+    map.addControl(ctlw, 'top-left')
+    map.addControl(ctlt, 'top-left')
+    const draw = e => {
+      const w = document.querySelector(`#${ctlw.id} input`).value
+      const t = document.querySelector(`#${ctlt.id} input`).value
+      ctlw.setVal(w, lblw(w))
+      ctlt.setVal(t, lblt(t-w, t))
+      map.getSource('points').setData({
+        type: 'FeatureCollection',
+        features: geoj.features.filter(f=>((t - w)<=f.properties._d)&&(f.properties._d<=t))
+      })
+    }
+    map.getSource('points').setData({ type: 'FeatureCollection', features: geoj.features })
+  })
 })
+
   </script>
   </body>
 </html>
