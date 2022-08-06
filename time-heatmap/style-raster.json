@@ -1,0 +1,20 @@
+{
+  "version": 8,
+  "name": "Raster Tile",
+  "sources": {
+    "rastertile": {
+      "type": "raster",
+      "tiles": [
+        "https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg"
+      ],
+      "tileSize": 256
+    }
+  },
+  "layers": [
+    {
+      "id": "rasterlayer",
+      "source": "rastertile",
+      "type": "raster"
+    }
+  ]
+}

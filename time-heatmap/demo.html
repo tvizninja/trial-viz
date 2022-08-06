@@ -15,24 +15,29 @@ html, body, #map {height: 100%; width: 100%; padding: 0; margin: 0; overflow: hi
     </style>
   </head>
   <body>
-    <div id='map'></map>
-  <script type='text/javascript'>
+    <div id='map'></div>
+    <script type='text/javascript'>
 // config
-const config = {
+const config = (p => ({
+  tunit: 24*60*60*1000,
   url_csv: 'data/viirs-snpp_2021_Japan.csv',
   //url_csv: 'data/viirs-snpp_2021_Spain.csv',
   //url_csv: 'data/viirs-snpp_2021_Ukraine.csv',
   map: {
     container: 'map',
-    style: 'https://demotiles.maplibre.org/style.json',
+    style: 'style-raster.json',
+    //style: 'https://demotiles.maplibre.org/style.json',
     hash: true,
-    'customAttribution': 'MapLibre, FIRMS(NASA)',
+    'customAttribution': 'MapLibre, FIRMS(NASA), GSI Japan',
     'maplibreLogo': true,
     'renderWorldCopies': false
   },
   source_points: {
-    type: 'geojson',
-    data: null
+    type: 'geojson', data: null
+  },
+  rangecontrol: {
+    'className': 'range mapboxgl-ctrl',
+    'cssText': 'background: #eee; opacity: 0.8'
   },
   rangew: {
     min: 0, max: 31, val: 7
@@ -44,7 +49,7 @@ const config = {
     paint: {
       'heatmap-weight': [
         'interpolate',
-        ['linear'], ['get', 'bright_ti4'],
+        ['linear'], ['get', p.mag],
         0, 0, 6, 1
       ],
       'heatmap-intensity': [
@@ -64,17 +69,17 @@ const config = {
       ],
       'heatmap-radius': [
         'interpolate',
-        ['linear'], ['zoom'],
-        0, 1, 9, 20
+        ["exponential", 2], ['zoom'],
+        9, 4, 18, 600
       ],
       'heatmap-opacity': [
         'interpolate',
         ['linear'], ['zoom'],
-        7, 1, 9, 0.5
+        7, 1, 9, 0.6
       ]
     }
-  },
-}
+  }
+}))({mag: 'bright_ti4'})
 
 // class and functions
 class rangeControl {
@@ -84,18 +89,22 @@ class rangeControl {
   }
   onAdd(map) {
     this._map = map
+    // div
     this._container = document.createElement('div')
     this._container.id = this.id
-    this._container.className += 'range mapboxgl-ctrl'
-    this._container.style.cssText = 'background: #eee; opacity: 0.8'
+    this._container.className    += config.rangecontrol.className
+    this._container.style.cssText = config.rangecontrol.cssText
+    // div input
     const input = document.createElement('input')
-    const label = document.createElement('label')
     input.type = 'range';
     (['min', 'max', 'step', 'value']).filter(k=>this.props[k]).forEach(k=>{
       input.setAttribute(k, this.props[k])
     })
     input.addEventListener('input', this.props.onchange)
+    // div label
+    const label = document.createElement('label')
     label.innerText = this.props.label || ''
+    // append
     this._container.append(input, document.createElement('br'), label)
     return this._container
   }
@@ -104,48 +113,46 @@ class rangeControl {
     this._map = undefined;
   }
   setVal(v, l) {
-    document.querySelector(`#${this.id} input`).value = v
+    document.querySelector(`#${this.id} input`).value     = v
     document.querySelector(`#${this.id} label`).innerText = l
   }
 }
 
 const windowRangeControl = (cb, opt) => {
   return new rangeControl({
-    step: 1,
-    min: opt.min || 0,
-    max: opt.max || 31,
-    value: opt.value || 7,
+    step:                1,
+    min:   opt.min   ||  0,
+    max:   opt.max   || 31,
+    value: opt.value ||  7,
     label: opt.label || '',
-    onchange: cb
+    onchange:           cb
   })
 }
 
 const timeRangeControl = (cb, opt) => {
   return new rangeControl({
-    step: 1,
-    min: opt.min || 0,
-    max: opt.max || 100,
-    value: opt.min || 0,
+    step:                1,
+    min: opt.min     ||  0,
+    max: opt.max     || 99,
+    value: opt.min   ||  0,
     label: opt.label || '',
-    onchange: cb
+    onchange:           cb
   })
 }
 
 const csv2json = url => {
   return window.fetch(url).then(r=>r.text()).then(txt=>{
-    const rows = txt.split("\n").filter(l=>l!='')
     const t = a => a.split(',').map(b=>b.trim())
+    const rows = txt.split("\n").filter(l=>l!='')
     const header = t(rows.shift())
-    const ilat = header.reduce((a,b,i)=>b.match(/latitude/i)?i:a,  '')
-    const ilng = header.reduce((a,b,i)=>b.match(/longitude/i)?i:a, '')
-    const iacq = header.reduce((a,b,i)=>b.match(/acq_date/i)?i:a,  '')
-    return {
+    const [ilat, ilng, iacq] = ['latitude', 'longitude', 'acq_date'].map(m => header.reduce((a,b,i)=>b.match(new RegExp(m, 'i'))?i:a, ''))
+    return { //geojson
       type: 'FeatureCollection',
       features: rows.map((row, i)=>({
         type: 'Feature',
         properties: {
           ...Object.fromEntries(t(row).map((a,i)=>[header[i],a.match(/^-?[0-9.]+$/)?parseFloat(a):a])),
-          _d: (new Date(t(row)[iacq])).getTime()/(24*60*60*1000)
+          _d: (new Date(t(row)[iacq])).getTime()/config.tunit // datetime to day count
         },
         geometry: {
           type: 'Point',
@@ -157,23 +164,26 @@ const csv2json = url => {
 }
 
 // process
-let geoj = null
-let map = null
-csv2json(config.url_csv).then(gj => {
-  geoj = gj
+let debug = {}
+const map = new maplibregl.Map(config.map)
+map.addControl(new maplibregl.NavigationControl())
+csv2json(config.url_csv).then(geoj => {
+  debug.gj = geoj
+  // set map view
   const minmax = a => [Math.min(...a), Math.max(...a)]
   const [cminlon, cmaxlon] = minmax(geoj.features.map(f=>f.geometry.coordinates[0]))
   const [cminlat, cmaxlat] = minmax(geoj.features.map(f=>f.geometry.coordinates[1]))
+  const [cdiflon, cdiflat] = [cmaxlon-cminlon, cmaxlat-cminlat]
   const [dmin, dmax] = minmax(geoj.features.map(f=>f.properties._d))
-  config.map.center = [cmaxlon-(cmaxlon-cminlon)/2, cmaxlat-(cmaxlat-cmaxlat)/2]
-  config.map['maxBounds'] = [[cminlon-10, cminlat-10], [cmaxlon+10, cmaxlat+10]]
-  config.map.zoom = Math.floor(Math.log2(180/Math.max(cmaxlat-cminlat, cmaxlon-cminlon)))
-  console.log(config.map)
-  map = new maplibregl.Map(config.map)
-  map.on('load', async () => {
+  map.setCenter(new maplibregl.LngLat(cmaxlon-cdiflon/2, cmaxlat-cdiflat/2))
+  map.setMaxBounds(new maplibregl.LngLatBounds([cminlon-10, cminlat-10], [cmaxlon+10, cmaxlat+10]))
+  map.setZoom(Math.floor(Math.log2(180/Math.max(cdiflon, cdiflat))))
+  map.on('load', () => { // map onload event
+    // add heatmaplayer
     map.addSource('points', config.source_points)
     map.addLayer(config.layer_heatmap)
-    const conv = d => (new Date(d*24*60*60*1000)).toISOString().slice(0,10)
+    // config controls
+    const conv = d => (new Date(config.tunit)).toISOString().slice(0,10)
     const lblw = a => `windowing(days): ${a}`
     const lblt = (a, b) => [conv(a), conv(b)].join(" - ")
     const ctlw = windowRangeControl(e=>draw(e), {
@@ -184,6 +194,7 @@ csv2json(config.url_csv).then(gj => {
     })
     map.addControl(ctlw, 'top-left')
     map.addControl(ctlt, 'top-left')
+    // draw heatmap
     const draw = e => {
       const w = document.querySelector(`#${ctlw.id} input`).value
       const t = document.querySelector(`#${ctlt.id} input`).value
@@ -197,7 +208,6 @@ csv2json(config.url_csv).then(gj => {
     map.getSource('points').setData({ type: 'FeatureCollection', features: geoj.features })
   })
 })
-
   </script>
   </body>
 </html>
