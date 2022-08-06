@@ -71,7 +71,7 @@ const config = (p => ({
       'heatmap-radius': [
         'interpolate',
         ["exponential", 2], ['zoom'],
-        9, 4, 18, 600
+        9, 4, 18, 1200
       ],
       'heatmap-opacity': [
         'interpolate',
@@ -176,9 +176,11 @@ csv2json(config.url_csv).then(geoj => {
   const [cminlat, cmaxlat] = minmax(geoj.features.map(f=>f.geometry.coordinates[1]))
   const [cdiflon, cdiflat] = [cmaxlon-cminlon, cmaxlat-cminlat]
   const [dmin, dmax] = minmax(geoj.features.map(f=>f.properties._d))
-  map.setCenter(new maplibregl.LngLat(cmaxlon-cdiflon/2, cmaxlat-cdiflat/2))
   map.setMaxBounds(new maplibregl.LngLatBounds([cminlon-10, cminlat-10], [cmaxlon+10, cmaxlat+10]))
-  map.setZoom(Math.floor(Math.log2(180/Math.max(cdiflon, cdiflat))))
+  if(!document.URL.match('#')){
+    map.setCenter(new maplibregl.LngLat(cmaxlon-cdiflon/2, cmaxlat-cdiflat/2))
+    map.setZoom(Math.floor(Math.log2(180/Math.max(cdiflon, cdiflat))))
+  }
   map.on('load', () => { // map onload event
     // add heatmaplayer
     map.addSource('points', config.source_points)
