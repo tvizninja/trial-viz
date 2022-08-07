@@ -273,6 +273,9 @@ map.addControl(app.ui.ctlt.h, 'top-left')
 map.on('style.load', () => {
   map.addSource('points', { type: 'geojson', data: app.geoj})
   map.addLayer(app.layer_heatmap)
+  map.on('click', function(e) {
+    new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`latlng: ${e.lngLat.lat.toFixed(2)},${e.lngLat.lng.toFixed(2)}`).addTo(map)
+  })
   drawhm()
 })
 // force select default option
