@@ -1,0 +1,22 @@
+{
+  "version": 8,
+  "name": "Raster Tile",
+  "sources": {
+    "photo": {
+      "type": "raster",
+      "tiles": [
+        "https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg"
+      ],
+      "minzoom":  2,
+      "maxzoom": 18,
+      "tileSize": 256
+    }
+  },
+  "layers": [
+    {
+      "id": "gsi-photo",
+      "source": "photo",
+      "type": "raster"
+    }
+  ]
+}

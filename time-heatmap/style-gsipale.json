@@ -1,0 +1,22 @@
+{
+  "version": 8,
+  "name": "Raster Tile",
+  "sources": {
+    "pale": {
+      "type": "raster",
+      "tiles": [
+        "https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png"
+      ],
+      "minzoom":  2,
+      "maxzoom": 18,
+      "tileSize": 256
+    }
+  },
+  "layers": [
+    {
+      "id": "gsi-pale",
+      "source": "pale",
+      "type": "raster"
+    }
+  ]
+}
