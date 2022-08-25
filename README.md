@@ -4,8 +4,11 @@
 
 ## Ideas
 
-* Time x heatmap
+* Time x Heatmap
   * [README](https://trial-viz.tviz.ninja/time-heatmap/)
   * [デモ](https://trial-viz.tviz.ninja/time-heatmap/demo.html)
-* Time x bubble chart
+* Table x Filter
+  * [README](https://trial-viz.tviz.ninja/table-filter/)
+  * [jp-number](https://trial-viz.tviz.ninja/table-filter/jpnum.html)
+* Time x Bubble chart
   * todo
