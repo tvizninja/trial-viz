@@ -11,22 +11,23 @@ li { border: 1px solid }
     </style>
   </head>
   <body>
-    <div><label>input telephon number (first digits group)<input type="text"></input></label></div>
+    <div><label>filter word<input type="text"></input></label></div>
     <div>
       <ul></ul>
     </div>
     <script type='text/javascript'>
 let tsv = null
 const show = () => {
-  const n = document.querySelector('input').value.replace(/[^0-9]*/g, '')
+  const v = document.querySelector('input').value
   const ul = document.querySelector('ul')
   ul.innerHTML = ''
   tsv.forEach(line => {
-    if(!line.n.match(n)) return
+    if(!(line.n+line.p).match(v)) return
     const li = document.createElement('li')
     li.innerText = `${line.n} : ${line.p}`
     ul.append(li)
   })
+  document.querySelector('input').focus()
 }
 
 window.onload = () => {
