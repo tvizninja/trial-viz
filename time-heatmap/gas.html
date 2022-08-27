@@ -4,8 +4,12 @@
     <meta charset='utf-8'>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
     <title>time x heatmap</title>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.10.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.10.0/mapbox-gl.css' rel='stylesheet' />
+    <!--
     <script src='https://unpkg.com/maplibre-gl@2.1.9/dist/maplibre-gl.js'></script>
     <link  href='https://unpkg.com/maplibre-gl@2.1.9/dist/maplibre-gl.css' rel='stylesheet'/>
+    -->
     <style>
 html, body, #map {height: 100%; width: 100%; padding: 0; margin: 0; overflow: hidden }
 label { font-size: medium }
@@ -26,8 +30,7 @@ const app = (p => ({
     hash: true,
     style: null,
     'maxZoom': 18,
-    'customAttribution': 'MapLibre, FIRMS(NASA), GSI Japan',
-    'maplibreLogo': true,
+    'customAttribution': 'Mapbox, FIRMS(NASA), GSI Japan',
     'renderWorldCopies': false
   },
   layer_heatmap: {
@@ -78,7 +81,7 @@ const app = (p => ({
       base: {
         label: 'map-',
         options: [
-          {value: 0, label: 'OSM-map',   'data-style': 'https://tile2.openstreetmap.jp/styles/osm-bright/style.json'},
+          {value: 0, label: 'MapboxSat', 'data-style': 'mapbox://styles/mapbox/satellite-v9'},
           {value: 1, label: 'GSI-photo', 'data-style': 'style-gsiphoto.json'},
           {value: 2, label: 'GSI-pale',  'data-style': 'style-gsipale.json'},
           {value: 3, label: 'MapLibre',  'data-style': 'https://demotiles.maplibre.org/style.json'}
@@ -222,7 +225,8 @@ const csv2json = url => {
 }
 
 // process
-const map = new maplibregl.Map(app.map)
+mapboxgl.accessToken = 'pk.eyJ1IjoidHZpem5pbmphIiwiYSI6ImNsN2M2enIybzBzbjkzcXFxbGQxdDlia28ifQ.wLkOBfKFb1OIkR7xsrBWgA'
+const map = new mapboxgl.Map(app.map)
 
 // draw heatmap
 const drawhm = () => {
@@ -248,9 +252,9 @@ const dataloaded = geoj => {
   //map.setMaxBounds(new maplibregl.LngLatBounds([cminlon-10, cminlat-10], [cmaxlon+10, cmaxlat+10]))
   //map.setCenter(new maplibregl.LngLat(cmaxlon-cdiflon/2, cmaxlat-cdiflat/2))
   //map.setZoom(Math.floor(Math.log2(180/Math.max(cdiflon, cdiflat))))
-  map.setMaxBounds(new maplibregl.LngLatBounds([0, cminlat-10], [35, cmaxlat+10]))
+  map.setMaxBounds(new mapboxgl.LngLatBounds([0, cminlat-10], [35, cmaxlat+10]))
   map.setZoom(12)
-  map.setCenter(new maplibregl.LngLat(28.129, 60.524))
+  map.setCenter(new mapboxgl.LngLat(28.129, 60.524))
   // set range
   app.ui.ctlt.h.setprops({min: dmin, max: dmax, value: dmax, label: app.util.lblt(Math.max(dmax-app.ui.ctlw.val, dmin), dmax)})
   // set data
@@ -258,7 +262,7 @@ const dataloaded = geoj => {
 }
 
 // init controls
-map.addControl(new maplibregl.NavigationControl())
+map.addControl(new mapboxgl.NavigationControl())
 app.ui.sbox.h = new selectBox({
   cbbase: e => {
     const selected = app.ui.sbox.base.options.reduce((a,b)=>a.value==e.target.value?a:b)
@@ -279,7 +283,7 @@ map.on('style.load', () => {
   map.addSource('points', { type: 'geojson', data: app.geoj})
   map.addLayer(app.layer_heatmap)
   map.on('click', function(e) {
-    new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`latlng: ${e.lngLat.lat.toFixed(2)},${e.lngLat.lng.toFixed(2)}`).addTo(map)
+    new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(`latlng: ${e.lngLat.lat.toFixed(2)},${e.lngLat.lng.toFixed(2)}`).addTo(map)
   })
   drawhm()
 })
