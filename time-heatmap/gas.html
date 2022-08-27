@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>time x heatmap</title>
+    <script src='https://unpkg.com/maplibre-gl@2.1.9/dist/maplibre-gl.js'></script>
+    <link  href='https://unpkg.com/maplibre-gl@2.1.9/dist/maplibre-gl.css' rel='stylesheet'/>
+    <style>
+html, body, #map {height: 100%; width: 100%; padding: 0; margin: 0; overflow: hidden }
+label { font-size: medium }
+label::before { content: "\00A0\00A0" }
+.selectbox { pointer-events: auto; padding: 8px; margin: 4px 16px; background: #eee; opacity: 0.8 }
+.range { pointer-events: auto; padding: 8px; margin: 4px 16px; background: #eee; opacity: 0.8 }
+.range input { width: 75vw }
+    </style>
+  </head>
+  <body>
+    <div id='map'></div>
+    <script type='text/javascript'>
+// app config
+const app = (p => ({
+  tunit: 24*60*60*1000,
+  map: {
+    container: 'map',
+    hash: true,
+    style: null,
+    'maxZoom': 18,
+    'customAttribution': 'MapLibre, FIRMS(NASA), GSI Japan',
+    'maplibreLogo': true,
+    'renderWorldCopies': false
+  },
+  layer_heatmap: {
+    id: 'heatmap',
+    type: 'heatmap',
+    source: 'points',
+    paint: {
+      'heatmap-weight': [
+        'interpolate',
+        ['linear'], ['get', p.mag],
+        0, 0, 6, 1
+      ],
+      'heatmap-intensity': [
+        'interpolate',
+        ['linear'], ['zoom'],
+        0, 0, 9, 1
+      ],
+      'heatmap-color': [
+        'interpolate',
+        ['linear'], ['heatmap-density'],
+        0,   'rgba(33,102,172,0)',
+        0.2, 'rgb(103,169,207)',
+        0.4, 'rgb(209,229,240)',
+        0.6, 'rgb(253,219,199)',
+        0.8, 'rgb(239,138,98)',
+        1,   'rgb(178,24,43)'
+      ],
+      'heatmap-radius': [
+        'interpolate',
+        ["exponential", 2], ['zoom'],
+        9, 4, 18, 1200
+      ],
+      'heatmap-opacity': [
+        'interpolate',
+        ['linear'], ['zoom'],
+        7, 1, 9, 0.6
+      ]
+    }
+  },
+  util: {
+    d2s:  d => (new Date(d*app.tunit)).toISOString().slice(0,10),
+    lblw: a => `windowing(days): ${a}`,
+    lblt: (a, b) => [app.util.d2s(a), app.util.d2s(b)].join(" - ")
+  },
+  ui: {
+    sbox: {
+      'className': 'selectbox',
+      base: {
+        label: 'map-',
+        options: [
+          {value: 0, label: 'OSM-map',   'data-style': 'https://tile2.openstreetmap.jp/styles/osm-bright/style.json'},
+          {value: 1, label: 'GSI-photo', 'data-style': 'style-gsiphoto.json'},
+          {value: 2, label: 'GSI-pale',  'data-style': 'style-gsipale.json'},
+          {value: 3, label: 'MapLibre',  'data-style': 'https://demotiles.maplibre.org/style.json'}
+        ]
+      },
+      data: {
+        label: 'data-',
+        options: [
+          {value: 0, label: 'Russia(2022/01-08)NOAA',   'data-style': 'data/viirs-noaa_2022_Rus_33E.csv'},
+          {value: 1, label: 'Russia(2022/01-08)Suomi',  'data-style': 'data/viirs-suomi_2022_Rus_33E.csv'},
+          {value: 2, label: 'Russia(2021)', 'data-style': 'data/viirs-snpp_2021_Russian_Federation_33E.csv'},
+          {value: 3, label: 'Russia(2020)', 'data-style': 'data/viirs-snpp_2020_Russian_Federation_33E.csv'},
+          {value: 4, label: 'Russia(2019)', 'data-style': 'data/viirs-snpp_2019_Russian_Federation_33E.csv'}
+        ]
+      }
+    },
+    range: {
+      'className': 'range'
+    },
+    ctlw: {
+      min: 0, max: 31, val: 7
+    },
+    ctlt: {}
+  },
+  geoj: null
+}))({mag: 'bright_ti4'})
+
+// class and functions
+
+class selectBox {
+  constructor(props) {
+    this.props = props
+    this.id = `sb${Math.random().toString(16).substring(2)}`
+  }
+  onAdd(map) {
+    this._map = map
+    // div
+    this._container = document.createElement('div')
+    this._container.id = this.id
+    this._container.className += app.ui.sbox.className
+    // select
+    this._sbase = document.createElement('select')
+    this._sdata = document.createElement('select')
+    const setopt = (node, name) => {
+      app.ui.sbox[name].options.map((o, i)=>{
+        const option = document.createElement('option');
+        if(i==0){option.selected = true}
+        ['value', 'data-style'].forEach(k=>option.setAttribute(k, o[k]))
+        option.innerText = o.label
+        node.appendChild(option)
+      })
+    }
+    setopt(this._sbase, 'base')
+    setopt(this._sdata, 'data')
+    // label
+    const lbase = document.createElement('label')
+    const ldata = document.createElement('label')
+    lbase.innerText = app.ui.sbox.base.label
+    ldata.innerText = app.ui.sbox.data.label
+    // set callback
+    if(this.props.cbbase){this._sbase.addEventListener('input', this.props.cbbase)}
+    if(this.props.cbdata){this._sdata.addEventListener('input', this.props.cbdata)}
+    // append
+    this._container.append(lbase, this._sbase, ldata, this._sdata)
+    return this._container
+  }
+  select(b, d){
+    if(b){this._sbase.dispatchEvent(new Event('input'))}
+    if(d){this._sdata.dispatchEvent(new Event('input'))}
+  }
+  onRemove() {
+    this._container.parentNode.removeChild(this._container);
+    this._map = undefined;
+  }
+}
+
+class rangeControl {
+  constructor(props) {
+    this.props = props
+    this.id = `rc${Math.random().toString(16).substring(2)}`
+  }
+  setprops(props){
+    this.props = {...this.props, ...props};
+    ['min', 'max', 'step', 'value'].filter(k=>this.props[k]).forEach(k=>{
+      this._input.setAttribute(k, this.props[k])
+    })
+    this._label?(this._label.innerText = this.props.label || ''):null
+  }
+  onAdd(map) {
+    this._map = map
+    // div
+    this._container = document.createElement('div')
+    this._container.id = this.id
+    this._container.className += app.ui.range.className
+    // div input
+    this._input = document.createElement('input')
+    this._input.type = 'range';
+    if(this.props.cb){this._input.addEventListener('input', this.props.cb)}
+    // div label
+    this._label = document.createElement('label')
+    this._label.innerText = this.props.label || ''
+    // append
+    this.setprops(this.props)
+    this._container.append(this._input, document.createElement('br'), this._label)
+    return this._container
+  }
+  onRemove() {
+    this._container.parentNode.removeChild(this._container);
+    this._map = undefined;
+  }
+  setVal(v, l) {
+    document.querySelector(`#${this.id} input`).value     = v
+    document.querySelector(`#${this.id} label`).innerText = l
+  }
+  getVal(){
+    return this.id?document.querySelector(`#${this.id} input`).value:null
+  }
+}
+
+const csv2json = url => {
+  return window.fetch(url).then(r=>r.text()).then(txt=>{
+    const t = a => a.split(',').map(b=>b.trim())
+    const rows = txt.split("\n").filter(l=>l!='')
+    const header = t(rows.shift())
+    const [ilat, ilng, iacq] = ['latitude', 'longitude', 'acq_date'].map(m => header.reduce((a,b,i)=>b.match(new RegExp(m, 'i'))?i:a, ''))
+    return { //geojson
+      type: 'FeatureCollection',
+      features: rows.map((row, i)=>({
+        type: 'Feature',
+        properties: {
+          ...Object.fromEntries(t(row).map((a,i)=>[header[i],a.match(/^-?[0-9.]+$/)?parseFloat(a):a])),
+          _d: (new Date(t(row)[iacq])).getTime()/app.tunit // datetime to day count
+        },
+        geometry: {
+          type: 'Point',
+          coordinates: [t(row)[ilng], t(row)[ilat]]
+        }
+      }))
+    }
+  })
+}
+
+// process
+const map = new maplibregl.Map(app.map)
+
+// draw heatmap
+const drawhm = () => {
+  if(!app.geoj) {return}
+  const w = app.ui.ctlw.h.getVal()
+  const t = app.ui.ctlt.h.getVal()
+  const u = Math.max(t-w, app.ui.ctlt.h.props.min)
+  let fs = app.geoj.features
+  app.ui.ctlw.h.setVal(w, app.util.lblw(w))
+  app.ui.ctlt.h.setVal(t, app.util.lblt(u, t))
+  fs = fs.filter(f => (u<=f.properties._d)&&(f.properties._d<=t))
+  map.getSource('points').setData({ type: 'FeatureCollection', features: fs })
+}
+
+const dataloaded = geoj => {
+  app.geoj = geoj
+  // set map view
+  const minmax = a => [Math.min(...a), Math.max(...a)]
+  const [cminlon, cmaxlon] = minmax(geoj.features.map(f=>f.geometry.coordinates[0]))
+  const [cminlat, cmaxlat] = minmax(geoj.features.map(f=>f.geometry.coordinates[1]))
+  const [cdiflon, cdiflat] = [cmaxlon-cminlon, cmaxlat-cminlat]
+  const [dmin, dmax] = minmax(geoj.features.map(f=>f.properties._d))
+  //map.setMaxBounds(new maplibregl.LngLatBounds([cminlon-10, cminlat-10], [cmaxlon+10, cmaxlat+10]))
+  //map.setCenter(new maplibregl.LngLat(cmaxlon-cdiflon/2, cmaxlat-cdiflat/2))
+  //map.setZoom(Math.floor(Math.log2(180/Math.max(cdiflon, cdiflat))))
+  map.setMaxBounds(new maplibregl.LngLatBounds([0, cminlat-10], [35, cmaxlat+10]))
+  map.setZoom(12)
+  map.setCenter(new maplibregl.LngLat(28.129, 60.524))
+  // set range
+  app.ui.ctlt.h.setprops({min: dmin, max: dmax, value: dmax, label: app.util.lblt(Math.max(dmax-app.ui.ctlw.val, dmin), dmax)})
+  // set data
+  map.getSource('points').setData({ type: 'FeatureCollection', features: geoj.features })
+}
+
+// init controls
+map.addControl(new maplibregl.NavigationControl())
+app.ui.sbox.h = new selectBox({
+  cbbase: e => {
+    const selected = app.ui.sbox.base.options.reduce((a,b)=>a.value==e.target.value?a:b)
+    map.setStyle(selected['data-style'])
+  },
+  cbdata: e => {
+    const selected = app.ui.sbox.data.options.reduce((a,b)=>a.value==e.target.value?a:b)
+    csv2json(selected['data-style']).then(dataloaded).then(drawhm)
+  }
+})
+app.ui.ctlw.h = new rangeControl({ cb: drawhm, step: 1, min: app.ui.ctlw.min, max: app.ui.ctlw.max, value: app.ui.ctlw.val, label: app.util.lblw(app.ui.ctlw.val) })
+app.ui.ctlt.h = new rangeControl({ cb: drawhm, step: 1 })
+map.addControl(app.ui.sbox.h, 'top-left')
+map.addControl(app.ui.ctlw.h, 'top-left')
+map.addControl(app.ui.ctlt.h, 'top-left')
+
+map.on('style.load', () => {
+  map.addSource('points', { type: 'geojson', data: app.geoj})
+  map.addLayer(app.layer_heatmap)
+  map.on('click', function(e) {
+    new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`latlng: ${e.lngLat.lat.toFixed(2)},${e.lngLat.lng.toFixed(2)}`).addTo(map)
+  })
+  drawhm()
+})
+// force select default option
+app.ui.sbox.h.select(true, true)
+  </script>
+  </body>
+</html>
