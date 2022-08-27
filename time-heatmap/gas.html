@@ -29,6 +29,8 @@ const app = (p => ({
     container: 'map',
     hash: true,
     style: null,
+    zoom: 12,
+    center: new mapboxgl.LngLat(28.129, 60.524),
     'maxZoom': 18,
     'customAttribution': 'Mapbox, FIRMS(NASA), GSI Japan',
     'renderWorldCopies': false
@@ -253,8 +255,8 @@ const dataloaded = geoj => {
   //map.setCenter(new maplibregl.LngLat(cmaxlon-cdiflon/2, cmaxlat-cdiflat/2))
   //map.setZoom(Math.floor(Math.log2(180/Math.max(cdiflon, cdiflat))))
   map.setMaxBounds(new mapboxgl.LngLatBounds([0, cminlat-10], [35, cmaxlat+10]))
-  map.setZoom(12)
-  map.setCenter(new mapboxgl.LngLat(28.129, 60.524))
+//  map.setZoom(12)
+//  map.setCenter(new mapboxgl.LngLat(28.129, 60.524))
   // set range
   app.ui.ctlt.h.setprops({min: dmin, max: dmax, value: dmax, label: app.util.lblt(Math.max(dmax-app.ui.ctlw.val, dmin), dmax)})
   // set data
