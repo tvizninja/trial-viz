@@ -78,18 +78,19 @@ const app = (p => ({
       base: {
         label: 'map-',
         options: [
-          {value: 0, label: 'MapLibre',  'data-style': 'https://demotiles.maplibre.org/style.json'},
-          {value: 1, label: 'GSI-photo', 'data-style': 'style-gsiphoto.json'},
-          {value: 2, label: 'GSI-pale',  'data-style': 'style-gsipale.json'},
-          {value: 3, label: 'OSM-map',   'data-style': 'https://tile2.openstreetmap.jp/styles/osm-bright/style.json'}
+          {value: 0, label: 'OSM-map',   'data-style': 'https://tile2.openstreetmap.jp/styles/osm-bright/style.json'},
+          {value: 1, label: 'MapLibre',  'data-style': 'https://demotiles.maplibre.org/style.json'},
+          {value: 2, label: 'GSI-photo', 'data-style': 'style-gsiphoto.json'},
+          {value: 3, label: 'GSI-pale',  'data-style': 'style-gsipale.json'}
         ]
       },
       data: {
         label: 'data-',
         options: [
-          {value: 0, label: 'Japan(2021)',   'data-style': 'data/viirs-snpp_2021_Japan.csv'},
-          {value: 1, label: 'Spain(2021)',   'data-style': 'data/viirs-snpp_2021_Spain.csv'},
-          {value: 2, label: 'Ukraine(2021)', 'data-style': 'data/viirs-snpp_2021_Ukraine.csv'}
+          {value: 0, label: 'Ukraine(2022)', 'data-style': 'data/viirs-snpp_2022_Ukraine.csv'},
+          {value: 1, label: 'Ukraine(2021)', 'data-style': 'data/viirs-snpp_2021_Ukraine.csv'},
+          {value: 2, label: 'Japan(2021)',   'data-style': 'data/viirs-snpp_2021_Japan.csv'},
+          {value: 3, label: 'Spain(2021)',   'data-style': 'data/viirs-snpp_2021_Spain.csv'}
         ]
       }
     },
@@ -97,7 +98,7 @@ const app = (p => ({
       'className': 'range'
     },
     ctlw: {
-      min: 0, max: 31, val: 30
+      min: 0, max: 31, val: 7
     },
     ctlt: {}
   },
