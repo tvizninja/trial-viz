@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>JWT</title>
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    #map {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="map"></div>
+  <script>
+    var map = new maplibregl.Map({
+      container: 'map',
+      style: {
+        'version': 8,
+        'sources': {
+          'raster-tiles': {
+            'type': 'raster',
+            'tiles': [
+              './{z}/{x}/{y}.png'
+            ],
+            'tileSize': 256,
+            'attribution':
+              'Original Image from <a target="_top" rel="noopener" href="https://webbtelescope.org/contents/media/images/2022/031/01G77PKB8NKR7S8Z6HBXMYATGJ?news=true">NASA</a>'
+          }
+        },
+        'layers': [
+          {
+            'id': 'simple-tiles',
+            'type': 'raster',
+            'source': 'raster-tiles',
+            'minzoom': 0,
+            'maxzoom': 5
+          }
+        ]
+      },
+      center: [0, 0],
+      zoom: 3,
+      'maxZoom': 4.9
+    });
+    map.dragRotate.disable();
+    map.touchZoomRotate.disableRotation();
+  </script>
+</body>
+
+</html>

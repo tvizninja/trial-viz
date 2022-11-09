@@ -12,3 +12,5 @@
   * [jp-number](https://trial-viz.tviz.ninja/table-filter/jpnum.html)
 * Time x Bubble chart
   * todo
+* JWT x Tiles
+  * <https://trial-viz.tviz.ninja/jwt-tiles/index.html>
